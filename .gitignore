@@ -1,0 +1,6 @@
+venv
+.ipynb_checkpoints/
+.DS_Store
+HAM10000_images_part_1
+HAM10000_images_part_2
+HAM10000_224
