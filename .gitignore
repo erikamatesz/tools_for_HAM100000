@@ -4,3 +4,10 @@ venv
 HAM10000_images_part_1
 HAM10000_images_part_2
 HAM10000_224
+*.keras
+
+__pycache__/
+
+# ignore all CSV files except metadata.csv
+*.csv
+!metadata.csv

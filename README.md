@@ -37,7 +37,7 @@ This repository provides all the code and tools necessary to preprocess and work
   Patient's age in years at the time the image/lesion was collected.
 
 - **sex**  
-  Patient's biological sex, usually `male` or `female`.
+  Patient's biological sex, `male` or `female`. There are some `unknown` entries.
 
 - **localization**  
   Anatomical localization of the lesion.
@@ -54,7 +54,7 @@ Create and activate a virtual env, and run `pip install -r requirements.txt` to 
 
 [Image Processor Documentation](IMAGE_PREPROCESSOR.md)
 
-[Load Preprocess Documentation](LOAD_PREPROCESS.md)
+[Training Pipeline Documentation](TRAINING_PIPELINE.md)
 
 ## 📝 License
 
