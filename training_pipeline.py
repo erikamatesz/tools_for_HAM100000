@@ -32,7 +32,7 @@ Usage example:
 python train_models.py \
     --csv metadata.csv \
     --images HAM10000_224 \
-    --model_output my_model \
+    --model_output saved_models/ \
     --model_name ConvNet_3ConvLayers \
     --epochs 30 \
     --batch_size 64 \
@@ -47,7 +47,7 @@ CLI Arguments
 --batch_size    Number of samples per batch. Default is 32.  
 --val_split     Fraction of the dataset used for validation. Default is 0.2.  
 --epochs        Number of training epochs. Default is 20.  
---model_output  Base filename for saving the trained model.  
+--model_output  Base filename or directory for saving the trained model.  
 --model_name    Architecture to use. Options:  
                - Dense_2Layers  
                - Dense_5Layers  
@@ -73,6 +73,10 @@ Notes
 - To compare different model architectures, run this script separately for each one and compare their logs manually.
 """
 
+# ------------------------
+# Imports and definitions
+# ------------------------
+
 import argparse
 from pathlib import Path
 from datetime import datetime
@@ -91,6 +95,10 @@ optimizers = tf.keras.optimizers
 callbacks = tf.keras.callbacks
 Sequence = tf.keras.utils.Sequence
 
+
+# ------------------------
+# Data loading and preprocessing
+# ------------------------
 
 def load_data(csv_path: Path, images_root: Path, img_size=(224, 224), val_split=0.2, batch_size=32):
     df = pd.read_csv(csv_path)
@@ -169,6 +177,10 @@ def load_data(csv_path: Path, images_root: Path, img_size=(224, 224), val_split=
     return train_gen, val_gen, train_clinical, val_clinical, labels
 
 
+# ------------------------
+# Multi-input generator
+# ------------------------
+
 class MultiInputGenerator(Sequence):
     # custom generator that puts image and clinical data together
     def __init__(self, image_gen, clinical_data, image_input_name='input_layer', **kwargs):
@@ -198,11 +210,14 @@ class MultiInputGenerator(Sequence):
         self.image_gen.on_epoch_end()  # ensure shuffling if enabled
 
 
+# ------------------------
+# Model builder
+# ------------------------
+
 def build_model(model_name, num_classes, clinical_input_dim, img_size=(224, 224, 3)):
     # selects model architecture based on the name passed
 
     if model_name == 'Dense_2Layers':
-        # 2 dense layers
         image_input = layers.Input(shape=img_size, name='input_layer')
         x = layers.Flatten()(image_input)
         x = layers.Dense(128, activation='relu')(x)
@@ -210,7 +225,6 @@ def build_model(model_name, num_classes, clinical_input_dim, img_size=(224, 224,
         image_input_name = image_input.name.split(':')[0]
 
     elif model_name == 'Dense_5Layers':
-        # 5 dense layers
         image_input = layers.Input(shape=img_size, name='input_layer')
         x = layers.Flatten()(image_input)
         x = layers.Dense(256, activation='relu')(x)
@@ -221,7 +235,6 @@ def build_model(model_name, num_classes, clinical_input_dim, img_size=(224, 224,
         image_input_name = image_input.name.split(':')[0]
 
     elif model_name == 'ConvNet_3ConvLayers':
-        # cnn with 3 convolutional layers
         image_input = layers.Input(shape=img_size, name='input_layer')
         x = layers.Conv2D(32, (3, 3), activation='relu')(image_input)
         x = layers.MaxPooling2D((2, 2))(x)
@@ -232,7 +245,6 @@ def build_model(model_name, num_classes, clinical_input_dim, img_size=(224, 224,
         image_input_name = image_input.name.split(':')[0]
 
     elif model_name == 'ConvNet_6ConvLayers':
-        # cnn with 6 conv layers in repeated blocks
         image_input = layers.Input(shape=img_size, name='input_layer')
         x = layers.Conv2D(32, (3, 3), activation='relu')(image_input)
         x = layers.Conv2D(32, (3, 3), activation='relu')(x)
@@ -246,7 +258,6 @@ def build_model(model_name, num_classes, clinical_input_dim, img_size=(224, 224,
         image_input_name = image_input.name.split(':')[0]
 
     elif model_name == 'ResNet50':
-        # pretrained resnet50
         image_input = layers.Input(shape=img_size, name='input_layer')
         base_model = tf.keras.applications.ResNet50(weights='imagenet', include_top=False, input_tensor=image_input)
         base_model.trainable = False
@@ -255,7 +266,6 @@ def build_model(model_name, num_classes, clinical_input_dim, img_size=(224, 224,
         image_input_name = image_input.name.split(':')[0]
 
     elif model_name == 'LSTM':
-        # reshape image to sequence format and feed into lstm
         image_input = layers.Input(shape=img_size, name='input_layer')
         x = layers.Reshape((img_size[0], img_size[1]*img_size[2]))(image_input)
         x = layers.LSTM(64)(x)
@@ -275,7 +285,6 @@ def build_model(model_name, num_classes, clinical_input_dim, img_size=(224, 224,
     z = layers.Dropout(0.3)(z)
     output = layers.Dense(num_classes, activation='softmax')(z)
 
-    # create final model
     model = models.Model(inputs=[image_input, clinical_input], outputs=output)
     model.compile(optimizer=optimizers.Adam(learning_rate=1e-4),
                   loss='categorical_crossentropy',
@@ -283,6 +292,10 @@ def build_model(model_name, num_classes, clinical_input_dim, img_size=(224, 224,
 
     return model, image_input_name
 
+
+# ------------------------
+# Custom logger
+# ------------------------
 
 class CSVLoggerWithModelName(tf.keras.callbacks.CSVLogger):
     # custom csv logger that includes the model name in every row
@@ -297,20 +310,21 @@ class CSVLoggerWithModelName(tf.keras.callbacks.CSVLogger):
 
     def on_epoch_end(self, epoch, logs=None):
         logs = logs or {}
-
-        # write header once with added 'model_name' field
         if not self.append:
             keys = list(logs.keys())
             keys.append('model_name')
             self.writer = csv.DictWriter(self.csv_file, fieldnames=keys)
             self.writer.writeheader()
             self.append = True
-
         row = logs.copy()
         row['model_name'] = self.model_name
         self.writer.writerow(row)
         self.csv_file.flush()
 
+
+# ------------------------
+# Main pipeline
+# ------------------------
 
 def main(args):
     print("Loading data...")
@@ -332,23 +346,23 @@ def main(args):
     )
     model.summary()
 
-    # generate output model file name if extension is missing
+    # define model name and output file path
     model_name = args.model_name
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_path = Path(args.model_output)
-    if not model_path.suffix:
-        model_path = Path(f"{args.model_output}_{timestamp}.keras")
+    model_output_base = Path(args.model_output)
+    if model_output_base.suffix:  # if has extension, use directly
+        model_path = model_output_base
+    else:
+        model_path = model_output_base.with_name(f"{model_name}_{timestamp}.keras")
 
     csv_logger = CSVLoggerWithModelName(f'training_log_{model_name}.csv', model_name=model_name)
 
-    # training callbacks
     cb = [
         callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True),
         callbacks.ModelCheckpoint(str(model_path), save_best_only=True),
         csv_logger,
     ]
 
-    # wrap generators to feed both image and clinical inputs
     train_multi_gen = MultiInputGenerator(train_gen, train_clinical, image_input_name=image_input_name)
     val_multi_gen = MultiInputGenerator(val_gen, val_clinical, image_input_name=image_input_name)
 
@@ -364,8 +378,11 @@ def main(args):
     print(f"Model saved to {model_path}")
 
 
+# ------------------------
+# CLI entry point
+# ------------------------
+
 if __name__ == '__main__':
-    # parse arguments
     parser = argparse.ArgumentParser(description="Train HAM10000 model combining images and clinical data.")
     parser.add_argument('--csv', required=True, help="CSV metadata file path")
     parser.add_argument('--images', required=True, help="Root folder with processed images (HAM10000_224)")
@@ -373,7 +390,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=32, help="Batch size")
     parser.add_argument('--val_split', type=float, default=0.2, help="Validation split fraction")
     parser.add_argument('--epochs', type=int, default=20, help="Number of epochs")
-    parser.add_argument('--model_output', default='model', help="Base name for saved model (no extension needed)")
+    parser.add_argument('--model_output', default='model', help="Base name or path for saved model (no extension needed)")
     parser.add_argument('--model_name', default='ConvNet_3ConvLayers', 
                         help="Model architecture name: Dense_2Layers, Dense_5Layers, ConvNet_3ConvLayers, ConvNet_6ConvLayers, ResNet50, LSTM")
     args = parser.parse_args()
