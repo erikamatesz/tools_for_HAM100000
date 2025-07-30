@@ -5,9 +5,9 @@ Processes HAM10000 dataset images spread across multiple source directories.
 (e.g., `HAM10000_images_part_1`, `HAM10000_images_part_2`).
 
 For each image:
-1. applies centered padding to make it square, preserving aspect ratio.
-2. resizes to a fixed size (default: 224×224).
-3. saves to the destination directory, preserving the source subfolder structure.
+1. Applies centered padding to make it square, preserving aspect ratio.
+2. Resizes to a fixed size (default: 224×224).
+3. Saves to the destination directory, preserving the source subfolder structure.
 
 Usage example:
 
@@ -26,8 +26,11 @@ CLI arguments
 --fill      Padding color (e.g., "black", "white", "#RRGGBB"). Default is black.  
 --workers   Number of parallel threads for processing. Default is 8.  
 --override  If set, overwrite existing files in the destination folder.
-
 """
+
+# ------------------------
+# Imports and definitions
+# ------------------------
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor
@@ -37,6 +40,10 @@ from pathlib import Path
 from PIL import Image, ImageOps
 from tqdm import tqdm
 
+
+# ------------------------
+# Image padding and resizing
+# ------------------------
 
 def pad_and_resize(img: Image.Image, target_size: int, fill_color: str) -> Image.Image:
     """Applies centered padding and resizes the image to square format."""
@@ -54,8 +61,12 @@ def pad_and_resize(img: Image.Image, target_size: int, fill_color: str) -> Image
     return padded.resize((target_size, target_size), Image.Resampling.LANCZOS)
 
 
+# ------------------------
+# Image processing logic
+# ------------------------
+
 def process_one(target_size: int, fill_color: str, override: bool, pair: tuple[Path, Path], dst_root: Path):
-    """Processes a single image.
+    """Processes a single image: pad, resize, and save.
 
     pair = (src_root, img_path)
     """
@@ -74,11 +85,19 @@ def process_one(target_size: int, fill_color: str, override: bool, pair: tuple[P
         out.save(dst_path, format="JPEG", quality=95, optimize=True)
 
 
+# ------------------------
+# Image discovery
+# ------------------------
+
 def gather_images(src_root: Path):
     """Finds all valid image files in a given source directory."""
     exts = {".jpg", ".jpeg", ".png"}
     return [p for p in src_root.rglob("*") if p.suffix.lower() in exts]
 
+
+# ------------------------
+# Main processing routine
+# ------------------------
 
 def main():
     parser = argparse.ArgumentParser(description="Apply padding and resizing to HAM10000 images across multiple directories.")
@@ -116,6 +135,10 @@ def main():
 
     print(f"\n✔ Conversion complete. {len(tasks)} files written to {dst_root}")
 
+
+# ------------------------
+# CLI entry point
+# ------------------------
 
 if __name__ == "__main__":
     main()
