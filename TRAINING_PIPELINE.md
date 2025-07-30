@@ -4,10 +4,11 @@ Tooling to train deep learning models on the **HAM10000** skin-lesion dataset by
 
 ## Overview
 
-`training_pipeline.py` trains a multi-input model using both dermoscopic images and patient metadata (age, biological sex, and lesion localization). The script supports a variety of architectures (Dense, CNN, ResNet50, LSTM), and each execution trains a single model variant. The best model checkpoint is saved automatically based on validation loss.
+`training_pipeline.py` trains a multi-input model using both dermoscopic images and patient metadata (age, biological sex, and lesion localization). The script supports a variety of architectures (Dense, CNN, ResNet50, LSTM). Each execution trains one model architecture (e.g., CNN, ResNet50, etc.). To compare results across architectures, run the script multiple times and compare the generated logs.
 
 ## Features
 
+* **Multi-input model:** Combines image data with structured clinical metadata for improved classification performance.
 * **Image and metadata fusion:** Uses both image data and clinical attributes for better classification.
 * **Multiple architectures:** Supports Dense, ConvNet, ResNet50, and LSTM.
 * **ModelCheckpoint support:** Automatically saves the best model (lowest validation loss).
@@ -40,29 +41,49 @@ python training_pipeline.py \
 ```
 
 ## Arguments
+| Flag            | Description                                                                  | Default                |
+|-----------------|------------------------------------------------------------------------------|------------------------|
+| `--csv`         | Path to the CSV metadata file (e.g., `metadata.csv`).                        | *Required*             |
+| `--images`      | Root folder with processed images (e.g., `HAM10000_224`).                    | *Required*             |
+| `--size`        | Image input size (e.g., 224 → 224x224x3).                                    | `224`                  |
+| `--batch_size`  | Batch size used during training.                                             | `32`                   |
+| `--val_split`   | Proportion of data used for validation.                                      | `0.2`                  |
+| `--epochs`      | Number of training epochs.                                                   | `20`                   |
+| `--model_output`| Base filename or directory for saving best model checkpoint.                 | `model`                |
+| `--model_name`  | Model architecture. Options: Dense_2Layers, ConvNet_6ConvLayers, etc.        | `ConvNet_3ConvLayers`  |
 
-| Flag            | Description                                                                 | Default                  |
-|------------------|------------------------------------------------------------------------------|---------------------------|
-| `--csv`          | Path to the CSV metadata file (e.g., `metadata.csv`).                        | *Required*                |
-| `--images`       | Root directory of processed images (e.g., `HAM10000_224`).                  | *Required*                |
-| `--size`         | Square image size used in training (e.g., 224 for 224x224).                 | `224`                     |
-| `--batch_size`   | Number of samples per training batch.                                       | `32`                      |
-| `--val_split`    | Fraction of data reserved for validation.                                   | `0.2`                     |
-| `--epochs`       | Number of training epochs.                                                   | `20`                      |
-| `--model_output` | Base name for saving the best trained model. Extension added automatically. | `model`                   |
-| `--model_name`   | Architecture to train. Options:                                              | `ConvNet_3ConvLayers`     |
-|                  | - `Dense_2Layers`                                                           |                           |
-|                  | - `Dense_5Layers`                                                           |                           |
-|                  | - `ConvNet_3ConvLayers`                                                     |                           |
-|                  | - `ConvNet_6ConvLayers`                                                     |                           |
-|                  | - `ResNet50`                                                                |                           |
-|                  | - `LSTM`                                                                    |                           |
+**Available architectures for `--model_name`:**
+- `Dense_2Layers`
+- `Dense_5Layers`
+- `ConvNet_3ConvLayers`
+- `ConvNet_6ConvLayers`
+- `ResNet50`
+- `LSTM`
 
 ## Outputs
 
-- Trained Keras model (`.keras` format), saved at best epoch according to validation loss.
-- Training log in CSV format with fields: epoch, accuracy, loss, val_accuracy, val_loss, and model name.
-- Model architecture printed to the console via `model.summary()`.
+After training, the script generates the following artifacts:
+
+- **Trained Keras model** (`.keras` format):  
+  The model is saved at the epoch where the validation loss (`val_loss`) was lowest. The filename follows the pattern:  
+
+```text
+<model_name>_<timestamp>.keras
+```
+
+Example: `ConvNet_3ConvLayers_20250730_154212.keras`
+
+- **Training log in CSV format**:  
+A CSV file named `training_log_<model_name>.csv` containing metrics for each epoch:
+- `epoch`
+- `loss`
+- `accuracy`
+- `val_loss`
+- `val_accuracy`
+- `model_name`
+
+- **Model summary printed to console**:  
+The architecture is displayed at runtime via `model.summary()`.
 
 ## Model Architectures
 
@@ -77,10 +98,12 @@ python training_pipeline.py \
 
 ## Example Directory Layout
 
+The structure below is one suggested way to organize your files. It was the layout I found most practical during development. However, you're free to organize your project differently. If you choose a different structure, just make sure to adjust the image paths accordingly in the preprocessing logic.
+
 ```
 project_root/
 │
-├─ metadata.csv           # clinical + label metadata
+├─ metadata.csv                    # clinical + label metadata
 ├─ HAM10000_224/                   # preprocessed square images (from prepare_images.py)
 │   ├─ HAM10000_images_part_1/
 │   └─ HAM10000_images_part_2/
